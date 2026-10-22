@@ -9,7 +9,6 @@ CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 # Point directly to the files in the same 'pages' folder
 db_path = os.path.join(CURRENT_DIR, "hltb.jsonlines")
 html_path = os.path.join(CURRENT_DIR, "hltb-higher-lower-redesign.html")
-
 # 1. Read dataset & html template
 try:
   with open(db_path, "r", encoding="utf-8") as f:
