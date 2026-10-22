@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Longer or Shorter? — Game Length</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        fontFamily: {
+          sans: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Display"', '"SF Pro Text"', 'Inter', 'sans-serif'],
+        },
+        colors: {
+          iosBg: '#0f172a',
+          iosCard: 'rgba(30, 41, 59, 0.75)',
+          accent: '#ff5a36',
+          good: '#10b981',
+          bad: '#ef4444',
+        }
+      }
+    }
+  }
+</script>
+<style>
+  /* Custom iOS and Game Dynamics */
+  :root {
+    --sat: env(safe-area-inset-top, 0px);
+    --sab: env(safe-area-inset-bottom, 0px);
+    --sal: env(safe-area-inset-left, 0px);
+    --sar: env(safe-area-inset-right, 0px);
+  }
+
+  body {
+    background-color: #0b0f19;
+    color: #f8fafc;
+    padding-top: var(--sat);
+    padding-bottom: var(--sab);
+    padding-left: var(--sal);
+    padding-right: var(--sar);
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    -webkit-user-select: none;
+    overflow-x: hidden;
+  }
+
+  /* Glassmorphism Blur */
+  .glass {
+    background: rgba(23, 32, 51, 0.75);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .glass-card {
+    background: linear-gradient(145deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.9));
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+  }
+
+  /* Smooth Card Slide Animation */
+  .card-slide-in {
+    animation: slideUp 0.38s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(20px) scale(0.96); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  .correct-pulse {
+    animation: pulseGood 0.6s ease-out forwards;
+  }
+
+  @keyframes pulseGood {
+    0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); border-color: #10b981; }
+    70% { box-shadow: 0 0 0 16px rgba(16, 185, 129, 0); border-color: #10b981; }
+    100% { border-color: #10b981; }
+  }
+
+  .wrong-shake {
+    animation: shakeBad 0.45s cubic-bezier(0.36, 0.07, 0.19, 0.97) forwards;
+  }
+
+  @keyframes shakeBad {
+    10%, 90% { transform: translate3d(-2px, 0, 0); }
+    20%, 80% { transform: translate3d(4px, 0, 0); border-color: #ef4444; }
+    30%, 50%, 70% { transform: translate3d(-6px, 0, 0); }
+    40%, 60% { transform: translate3d(6px, 0, 0); }
+  }
+
+  /* Skeleton Loading pulse */
+  .poster-skeleton {
+    background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%);
+    background-size: 200% 100%;
+    animation: skeleton-loading 1.5s infinite;
+  }
+
+  @keyframes skeleton-loading {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+</style>
+</head>
+<body class="min-h-screen flex flex-col justify-between font-sans antialiased text-slate-100 selection:bg-rose-500 selection:text-white">
+
+  <!-- Header Sticky Bar -->
+  <header class="sticky top-0 z-30 w-full glass border-b border-white/10 px-4 py-3 flex items-center justify-between shadow-lg">
+    <div class="flex items-center gap-2">
+      <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-rose-500 to-amber-500 flex items-center justify-center font-black text-sm shadow-md">
+        ⏱️
+      </div>
+      <h1 class="font-extrabold text-base tracking-tight leading-none bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
+        Longer or Shorter
+      </h1>
+    </div>
+
+    <!-- Score & Pool Badges -->
+    <div class="flex items-center gap-2">
+      <div class="bg-slate-800/80 border border-white/10 rounded-full px-3 py-1 flex items-center gap-1.5 text-xs font-bold shadow-inner">
+        <span class="text-slate-400 font-medium">Score</span>
+        <span id="score" class="text-rose-400 font-extrabold text-sm">0</span>
+      </div>
+      <div class="bg-slate-800/80 border border-white/10 rounded-full px-3 py-1 flex items-center gap-1.5 text-xs font-bold shadow-inner">
+        <span class="text-slate-400 font-medium">Best</span>
+        <span id="best" class="text-amber-400 font-extrabold text-sm">0</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Automatic Loading & Status Screen -->
+  <main id="statusContainer" class="flex-1 flex flex-col items-center justify-center p-6 text-center max-w-md mx-auto my-auto w-full">
+    <div class="glass-card rounded-3xl p-6 shadow-2xl border border-white/10 w-full flex flex-col items-center gap-4">
+      <div id="loadingIcon" class="w-12 h-12 rounded-2xl bg-rose-500/20 text-rose-400 flex items-center justify-center text-2xl mb-1">
+        <svg class="animate-spin h-6 w-6 text-rose-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+      </div>
+      <h2 id="statusTitle" class="text-lg font-bold text-white">Fetching Dataset...</h2>
+      <p id="statusDesc" class="text-xs text-slate-400 leading-relaxed">
+        Automatically loading <code class="bg-slate-800 text-rose-300 px-1.5 py-0.5 rounded border border-white/5">hltb.jsonlines</code> from current server directory.
+      </p>
+
+      <!-- Silent Fallback File Upload (Only shown if relative server fetch completely fails) -->
+      <div id="picker" class="hidden w-full mt-2 flex flex-col gap-3">
+        <p class="text-xs text-amber-300/90 bg-amber-500/10 p-2.5 rounded-xl border border-amber-500/20 text-left">
+          ⚠️ Could not automatically find <code class="text-amber-200">hltb.jsonlines</code> in the same folder. If running locally without a web server, select the file manually below:
+        </p>
+        <label for="file" class="w-full py-3.5 px-4 bg-slate-800 hover:bg-slate-700 active:scale-95 transition rounded-2xl font-bold text-xs text-slate-200 border border-white/10 flex items-center justify-center gap-2 cursor-pointer">
+          <span>Choose hltb.jsonlines manually</span>
+        </label>
+        <input type="file" id="file" accept=".jsonlines,.jsonl,.json,.txt" class="hidden">
+      </div>
+    </div>
+  </main>
+
+  <!-- Main Gameplay Screen -->
+  <main id="game" class="hidden flex-1 flex-col items-center justify-between p-3 sm:p-4 max-w-lg mx-auto w-full gap-3">
+
+    <!-- Sub Header Controls (Pool Picker) -->
+    <div class="w-full flex items-center justify-between bg-slate-900/60 border border-white/5 rounded-2xl px-3 py-2 text-xs">
+      <span class="text-slate-400 font-semibold flex items-center gap-1.5">
+        <span>🎮</span> Game Pool
+      </span>
+      <select id="pool" class="bg-slate-800 text-slate-100 border border-white/10 rounded-lg px-2 py-1 font-bold outline-none focus:ring-2 focus:ring-rose-500/50">
+      </select>
+    </div>
+
+    <!-- Cards Layout Area -->
+    <div class="w-full flex-1 flex flex-col gap-3 justify-center">
+
+      <!-- TOP CARD: BASE REFERENCE GAME -->
+      <div id="left" class="glass-card rounded-3xl p-3 sm:p-4 flex items-center gap-3.5 relative overflow-hidden transition-all duration-300">
+        <div class="relative flex-shrink-0">
+          <div id="leftSkeleton" class="w-20 h-28 sm:w-24 sm:h-32 rounded-2xl poster-skeleton"></div>
+          <img id="leftPoster" class="w-20 h-28 sm:w-24 sm:h-32 object-cover rounded-2xl shadow-md border border-white/10 absolute inset-0 opacity-0 transition-opacity duration-300" alt="">
+        </div>
+        <div class="flex-1 min-w-0 flex flex-col justify-center gap-1">
+          <span class="text-[10px] uppercase tracking-wider font-extrabold text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-md px-2 py-0.5 w-max">Reference Game</span>
+          <h3 id="leftTitle" class="font-black text-base sm:text-lg leading-tight text-white truncate"></h3>
+          <p id="leftMeta" class="text-xs text-slate-400 font-medium"></p>
+          <div class="mt-1 flex items-baseline gap-1.5">
+            <span id="leftHours" class="text-2xl sm:text-3xl font-black text-white tracking-tight"></span>
+            <span class="text-[11px] font-semibold text-slate-400">main story</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- VS DIVIDER BADGE -->
+      <div class="flex items-center justify-center -my-1 z-10">
+        <div class="bg-slate-800 border border-white/20 text-slate-300 text-[10px] font-black px-3 py-1 rounded-full shadow-lg tracking-widest uppercase">
+          VS
+        </div>
+      </div>
+
+      <!-- BOTTOM CARD: TARGET GAME TO GUESS -->
+      <div id="right" class="glass-card rounded-3xl p-3 sm:p-4 flex items-center gap-3.5 relative overflow-hidden transition-all duration-300">
+        <div class="relative flex-shrink-0">
+          <div id="rightSkeleton" class="w-20 h-28 sm:w-24 sm:h-32 rounded-2xl poster-skeleton"></div>
+          <img id="rightPoster" class="w-20 h-28 sm:w-24 sm:h-32 object-cover rounded-2xl shadow-md border border-white/10 absolute inset-0 opacity-0 transition-opacity duration-300" alt="">
+        </div>
+        <div class="flex-1 min-w-0 flex flex-col justify-center gap-1">
+          <span class="text-[10px] uppercase tracking-wider font-extrabold text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-md px-2 py-0.5 w-max">Is this game...</span>
+          <h3 id="rightTitle" class="font-black text-base sm:text-lg leading-tight text-white truncate"></h3>
+          <p id="rightMeta" class="text-xs text-slate-400 font-medium"></p>
+
+          <!-- Revealed Hours / Secret Question Mark -->
+          <div class="mt-1 flex items-baseline gap-1.5">
+            <div id="rightReveal" class="text-2xl sm:text-3xl font-black text-amber-400 tracking-tight">?</div>
+            <span id="rightUnit" class="text-[11px] font-semibold text-slate-400 hidden">main story</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- GAME OVER OVERLAY MODAL -->
+    <div id="over" class="hidden glass-card rounded-3xl p-5 border border-white/20 shadow-2xl w-full text-center my-auto flex flex-col gap-3">
+      <div class="text-3xl">💥</div>
+      <h2 class="text-xl font-extrabold text-white">Game Over</h2>
+      <p id="overMsg" class="text-xs sm:text-sm text-slate-300 leading-relaxed px-2"></p>
+
+      <div class="flex gap-2 mt-2">
+        <button id="again" class="flex-1 py-3.5 bg-rose-500 hover:bg-rose-600 active:scale-95 transition rounded-2xl font-black text-sm text-white shadow-lg shadow-rose-500/20">
+          Play Again 🔄
+        </button>
+        <button id="shareBtn" class="py-3.5 px-4 bg-slate-800 hover:bg-slate-700 active:scale-95 transition rounded-2xl font-bold text-sm text-slate-200 border border-white/10 flex items-center justify-center gap-1.5">
+          <span>Share</span> 📤
+        </button>
+      </div>
+    </div>
+
+    <!-- SPACE FOR FIXED BOTTOM BUTTONS -->
+    <div class="h-20 w-full shrink-0"></div>
+  </main>
+
+  <!-- FLOATING ONE-HANDED THUMB ACTION DRAWER -->
+  <footer id="actionDrawer" class="hidden fixed bottom-0 left-0 right-0 z-40 glass border-t border-white/10 p-3 sm:p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+    <div class="max-w-lg mx-auto flex gap-3" id="guessBtns">
+      <button id="higher" class="flex-1 py-4 bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700 active:scale-95 transition rounded-2xl font-black text-base sm:text-lg text-white shadow-lg shadow-rose-500/25 flex items-center justify-center gap-2 touch-manipulation">
+        <span>⬆</span> LONGER
+      </button>
+      <button id="lower" class="flex-1 py-4 bg-gradient-to-r from-slate-800 to-slate-900 hover:from-slate-700 hover:to-slate-800 active:scale-95 transition rounded-2xl font-black text-base sm:text-lg text-slate-100 border border-white/15 shadow-lg flex items-center justify-center gap-2 touch-manipulation">
+        <span>⬇</span> SHORTER
+      </button>
+    </div>
+  </footer>
+
+<script>
+const DATA_FILE = "hltb.jsonlines";
+const POOLS = [[500, "Famous"], [100, "Popular"], [25, "Wide"], [1, "Everything"]];
+const DEFAULT_POOL = 100;
+
+const $ = id => document.getElementById(id);
+let ALL = [];      // every usable game: {name, mins, polled, steam, year}
+let pool = [];     // current filtered pool
+let minPolled = DEFAULT_POOL;
+let score = 0, best = 0, left, right, upcoming, locked = false;
+
+// ---------- Haptic Feedback helper ----------
+function triggerHaptic(type = "light") {
+  if (!("vibrate" in navigator)) return;
+  try {
+    if (type === "success") navigator.vibrate([30, 50, 30]);
+    else if (type === "error") navigator.vibrate([80, 40, 80]);
+    else navigator.vibrate(20);
+  } catch (e) {}
+}
+
+// ---------- Parsing Logic ----------
+function parseMins(s) {
+  if (!s) return null;
+  const h = /(\d+)\s*h/.exec(s), m = /(\d+)\s*m/.exec(s);
+  if (!h && !m) return null;
+  return (h ? +h[1] : 0) * 60 + (m ? +m[1] : 0);
+}
+
+function parsePolled(s) {
+  if (!s) return 0;
+  s = String(s).trim().toUpperCase().replace(/,/g, "");
+  const n = s.endsWith("K") ? parseFloat(s) * 1000 : parseFloat(s);
+  return isFinite(n) ? Math.round(n) : 0;
+}
+
+function loadText(text) {
+  const games = [];
+  for (const line of text.split("\n")) {
+    if (!line.trim()) continue;
+    let d; try { d = JSON.parse(line); } catch (e) { continue; }
+    const main = d.Stats && d.Stats["Single-Player"] && d.Stats["Single-Player"]["Main Story"];
+    if (!main) continue;
+    const mins = parseMins(main.Average);
+    if (!mins) continue;
+    games.push({
+      name: d.Name, mins, polled: parsePolled(main.Polled),
+      steam: d.steam_app_id || null, year: (d.Release_date || "").slice(0, 4)
+    });
+  }
+  return games;
+}
+
+// ---------- Formatting ----------
+function fmt(m) {
+  const h = Math.floor(m / 60), r = m % 60;
+  return h ? (r ? `${h}h ${r}m` : `${h}h`) : `${r}m`;
+}
+const metaLine = g => [g.year, g.polled.toLocaleString() + " votes"].filter(Boolean).join(" · ");
+
+// ---------- Posters: Steam art first, then Wikipedia ----------
+const posterCache = new Map();
+function tryImage(url) {
+  return new Promise(res => { const i = new Image(); i.onload = () => res(url); i.onerror = () => res(null); i.src = url; });
+}
+
+async function wikiThumb(name) {
+  try {
+    const r = await fetch("https://en.wikipedia.org/api/rest_v1/page/summary/" + encodeURIComponent(name.replace(/ /g, "_")));
+    if (!r.ok) return null;
+    const d = await r.json();
+    return (d.thumbnail && d.thumbnail.source) || null;
+  } catch (e) { return null; }
+}
+
+function resolvePoster(g) {
+  if (!g) return Promise.resolve(null);
+  if (!posterCache.has(g.name)) {
+    posterCache.set(g.name, (async () => {
+      if (g.steam) {
+        const base = `https://cdn.cloudflare.steamstatic.com/steam/apps/${g.steam}/`;
+        for (const f of ["library_600x900.jpg", "header.jpg"]) {
+          const ok = await tryImage(base + f);
+          if (ok) return ok;
+        }
+      }
+      return await wikiThumb(g.name);
+    })());
+  }
+  return posterCache.get(g.name);
+}
+
+function setPoster(img, skeleton, g) {
+  img.style.opacity = "0";
+  skeleton.style.display = "block";
+  img.dataset.game = g.name;
+
+  resolvePoster(g).then(url => {
+    if (img.dataset.game !== g.name) return;
+    if (url) {
+      img.onload = () => {
+        if (img.dataset.game === g.name) {
+          img.style.opacity = "1";
+          skeleton.style.display = "none";
+        }
+      };
+      img.src = url;
+    } else {
+      img.src = `https://placehold.co/300x400/1e293b/94a3b8?text=${encodeURIComponent(g.name.slice(0, 12))}`;
+      img.onload = () => {
+        img.style.opacity = "1";
+        skeleton.style.display = "none";
+      };
+    }
+  });
+}
+
+// ---------- Game Engine ----------
+const rand = arr => arr[Math.floor(Math.random() * arr.length)];
+function pickNext(prev) {
+  let g, tries = 0;
+  do { g = rand(pool); tries++; } while ((g === prev || g.mins === prev.mins) && tries < 200);
+  return g;
+}
+
+function render() {
+  setPoster($("leftPoster"), $("leftSkeleton"), left);
+  setPoster($("rightPoster"), $("rightSkeleton"), right);
+
+  $("leftTitle").textContent = left.name;
+  $("leftMeta").textContent = metaLine(left);
+  $("leftHours").textContent = fmt(left.mins);
+
+  $("rightTitle").textContent = right.name;
+  $("rightMeta").textContent = metaLine(right);
+
+  $("rightReveal").textContent = "?";
+  $("rightReveal").className = "text-2xl sm:text-3xl font-black text-amber-400 tracking-tight";
+  $("rightUnit").classList.add("hidden");
+
+  $("right").className = "glass-card rounded-3xl p-3 sm:p-4 flex items-center gap-3.5 relative overflow-hidden transition-all duration-300 card-slide-in";
+  $("left").className = "glass-card rounded-3xl p-3 sm:p-4 flex items-center gap-3.5 relative overflow-hidden transition-all duration-300";
+
+  $("actionDrawer").classList.remove("hidden");
+  $("score").textContent = score;
+  locked = false;
+}
+
+function guess(wantLonger) {
+  if (locked) return;
+  locked = true;
+  triggerHaptic("light");
+
+  $("rightReveal").textContent = fmt(right.mins);
+  $("rightUnit").classList.remove("hidden");
+
+  const correct = wantLonger ? right.mins >= left.mins : right.mins <= left.mins;
+
+  if (correct) {
+    triggerHaptic("success");
+    score++;
+    $("score").textContent = score;
+    $("right").classList.add("correct-pulse");
+    $("rightReveal").className = "text-2xl sm:text-3xl font-black text-emerald-400 tracking-tight";
+
+    setTimeout(() => {
+      left = right; right = upcoming; upcoming = pickNext(right);
+      resolvePoster(upcoming);
+      render();
+    }, 1200);
+  } else {
+    triggerHaptic("error");
+    $("right").classList.add("wrong-shake");
+    $("rightReveal").className = "text-2xl sm:text-3xl font-black text-rose-500 tracking-tight";
+
+    if (score > best) {
+      best = score; $("best").textContent = best;
+      try { localStorage.setItem("hltb-best-" + minPolled, best); } catch (e) {}
+    }
+
+    setTimeout(() => {
+      $("actionDrawer").classList.add("hidden");
+      $("overMsg").innerHTML = `<b>${right.name}</b> takes <b>${fmt(right.mins)}</b> to beat vs <b>${fmt(left.mins)}</b> for <b>${left.name}</b>.`;
+      $("over").classList.remove("hidden");
+      $("over").classList.add("card-slide-in");
+    }, 1000);
+  }
+}
+
+function start() {
+  score = 0;
+  $("over").classList.add("hidden");
+  pool = ALL.filter(g => g.polled >= minPolled);
+  best = 0;
+  try { best = Number(localStorage.getItem("hltb-best-" + minPolled)) || 0; } catch (e) {}
+  $("best").textContent = best;
+
+  left = rand(pool);
+  right = pickNext(left);
+  upcoming = pickNext(right);
+  resolvePoster(upcoming);
+  render();
+}
+
+function init(text) {
+  ALL = loadText(text);
+  if (!ALL.length) {
+    $("statusTitle").textContent = "Dataset Empty";
+    $("statusDesc").textContent = "Loaded dataset file, but found no usable game entries.";
+    $("picker").classList.remove("hidden");
+    return;
+  }
+  $("pool").innerHTML = POOLS.map(([n, label]) => {
+    const count = ALL.filter(g => g.polled >= n).length;
+    return `<option value="${n}" ${n === DEFAULT_POOL ? "selected" : ""}>${label} (${count.toLocaleString()})</option>`;
+  }).join("");
+
+  $("statusContainer").classList.add("hidden");
+  $("game").classList.remove("hidden");
+  $("game").classList.add("flex");
+  start();
+}
+
+// ---------- Automatic Fetching with Retry Logic ----------
+async function fetchDataset(retries = 3, delay = 1000) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      if (i > 0) {
+        $("statusTitle").textContent = `Retrying Fetch (${i}/${retries - 1})...`;
+      }
+      const res = await fetch(DATA_FILE, { cache: "no-cache" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const text = await res.text();
+      init(text);
+      return;
+    } catch (err) {
+      if (i < retries - 1) {
+        await new Promise(r => setTimeout(r, delay));
+      }
+    }
+  }
+
+  // Automatic fetch failed completely
+  $("loadingIcon").innerHTML = "⚠️";
+  $("statusTitle").textContent = "Automatic Fetch Failed";
+  $("statusDesc").textContent = `Unable to fetch '${DATA_FILE}' automatically from current server host.`;
+  $("picker").classList.remove("hidden");
+}
+
+// ---------- Event Listeners ----------
+$("pool").onchange = e => { minPolled = +e.target.value; start(); };
+$("higher").onclick = () => guess(true);
+$("lower").onclick = () => guess(false);
+$("again").onclick = () => { triggerHaptic("light"); start(); };
+
+// Web Share API support for iPhone
+$("shareBtn").onclick = async () => {
+  triggerHaptic("light");
+  const shareData = {
+    title: 'Longer or Shorter? Game',
+    text: `🎮 I scored ${score} in Longer or Shorter (HLTB Edition)! Can you beat my score?`,
+    url: window.location.href,
+  };
+  if (navigator.share) {
+    try { await navigator.share(shareData); } catch (e) {}
+  } else {
+    navigator.clipboard.writeText(shareData.text);
+    alert("Score copied to clipboard!");
+  }
+};
+
+$("file").onchange = e => {
+  const f = e.target.files[0];
+  if (f) {
+    $("statusTitle").textContent = "Parsing File...";
+    f.text().then(init);
+  }
+};
+
+// Start automatic fetch on page load
+window.addEventListener("DOMContentLoaded", () => {
+  fetchDataset();
+});
+</script>
+</body>
+</html>
