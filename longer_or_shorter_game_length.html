@@ -331,39 +331,53 @@ function resolvePoster(g) {
   return posterCache.get(g.name);
 }
 
+// ---------- Posters: Direct Reliable Fallbacks ----------
+const posterCache = new Map();
+
+function getGamePosterUrl(g) {
+  if (!g) return `https://placehold.co/300x450/1e293b/94a3b8?text=Game`;
+  
+  // If Steam App ID exists, use Steam's reliable vertical grid art directly
+  if (g.steam && g.steam > 0) {
+    return `https://cdn.cloudflare.steamstatic.com/steam/apps/${g.steam}/library_600x900.jpg`;
+  }
+  
+  // Clean game name for search queries or placeholders
+  const cleanName = encodeURIComponent(g.name.slice(0, 16));
+  return `https://placehold.co/300x450/1e293b/94a3b8?text=${cleanName}`;
+}
+
 function setPoster(img, skeleton, g) {
-  // Immediately show skeleton and keep image hidden until ready
+  // Always show skeleton first
   skeleton.style.display = "block";
   img.style.opacity = "0";
   img.dataset.game = g.name;
 
-  resolvePoster(g).then(url => {
-    // If user already clicked to the next round while this was loading, abort
+  const targetUrl = getGamePosterUrl(g);
+
+  // Use a temporary image object to pre-load and verify it exists
+  const tempImg = new Image();
+  
+  tempImg.onload = () => {
     if (img.dataset.game !== g.name) return;
-
-    const targetUrl = url || `https://placehold.co/300x450/1e293b/94a3b8?text=${encodeURIComponent(g.name.slice(0, 14))}`;
-
-    // Preload image object to ensure it's fully downloaded before swapping display
-    const tempImg = new Image();
-    tempImg.onload = () => {
-      if (img.dataset.game !== g.name) return;
-      img.src = targetUrl;
-      skeleton.style.display = "none";
-      // Fade in smoothly and lock opacity so it doesn't flash
-      requestAnimationFrame(() => {
-        img.style.opacity = "1";
-      });
-    };
-    tempImg.onerror = () => {
-      if (img.dataset.game !== g.name) return;
-      img.src = `https://placehold.co/300x450/1e293b/94a3b8?text=${encodeURIComponent(g.name.slice(0, 14))}`;
-      skeleton.style.display = "none";
+    img.src = targetUrl;
+    skeleton.style.display = "none";
+    requestAnimationFrame(() => {
       img.style.opacity = "1";
-    };
-    tempImg.src = targetUrl;
-  });
-}
+    });
+  };
 
+  tempImg.onerror = () => {
+    if (img.dataset.game !== g.name) return;
+    // Fallback to stylized placeholder text box if Steam CDN asset fails
+    const fallbackUrl = `https://placehold.co/300x450/1e293b/94a3b8?text=${encodeURIComponent(g.name.slice(0, 14))}`;
+    img.src = fallbackUrl;
+    skeleton.style.display = "none";
+    img.style.opacity = "1";
+  };
+
+  tempImg.src = targetUrl;
+}
 const rand = arr => arr[Math.floor(Math.random() * arr.length)];
 function pickNext(prev) {
   let g, tries = 0;
