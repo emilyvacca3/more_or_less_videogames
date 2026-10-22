@@ -300,62 +300,22 @@ function fmt(m) {
 }
 const metaLine = g => [g.year, g.polled.toLocaleString() + " votes"].filter(Boolean).join(" · ");
 
-const posterCache = new Map();
-function tryImage(url) {
-  return new Promise(res => { const i = new Image(); i.onload = () => res(url); i.onerror = () => res(null); i.src = url; });
-}
-
-async function wikiThumb(name) {
-  try {
-    const r = await fetch("https://en.wikipedia.org/api/rest_v1/page/summary/" + encodeURIComponent(name.replace(/ /g, "_")));
-    if (!r.ok) return null;
-    const d = await r.json();
-    return (d.thumbnail && d.thumbnail.source) || null;
-  } catch (e) { return null; }
-}
-
-function resolvePoster(g) {
-  if (!g) return Promise.resolve(null);
-  if (!posterCache.has(g.name)) {
-    posterCache.set(g.name, (async () => {
-      if (g.steam) {
-        const base = `https://cdn.cloudflare.steamstatic.com/steam/apps/${g.steam}/`;
-        for (const f of ["library_600x900.jpg", "header.jpg"]) {
-          const ok = await tryImage(base + f);
-          if (ok) return ok;
-        }
-      }
-      return await wikiThumb(g.name);
-    })());
-  }
-  return posterCache.get(g.name);
-}
-
 // ---------- Posters: Direct Reliable Fallbacks ----------
-const posterCache = new Map();
-
 function getGamePosterUrl(g) {
   if (!g) return `https://placehold.co/300x450/1e293b/94a3b8?text=Game`;
-  
-  // If Steam App ID exists, use Steam's reliable vertical grid art directly
   if (g.steam && g.steam > 0) {
     return `https://cdn.cloudflare.steamstatic.com/steam/apps/${g.steam}/library_600x900.jpg`;
   }
-  
-  // Clean game name for search queries or placeholders
   const cleanName = encodeURIComponent(g.name.slice(0, 16));
   return `https://placehold.co/300x450/1e293b/94a3b8?text=${cleanName}`;
 }
 
 function setPoster(img, skeleton, g) {
-  // Always show skeleton first
   skeleton.style.display = "block";
   img.style.opacity = "0";
   img.dataset.game = g.name;
 
   const targetUrl = getGamePosterUrl(g);
-
-  // Use a temporary image object to pre-load and verify it exists
   const tempImg = new Image();
   
   tempImg.onload = () => {
@@ -369,7 +329,6 @@ function setPoster(img, skeleton, g) {
 
   tempImg.onerror = () => {
     if (img.dataset.game !== g.name) return;
-    // Fallback to stylized placeholder text box if Steam CDN asset fails
     const fallbackUrl = `https://placehold.co/300x450/1e293b/94a3b8?text=${encodeURIComponent(g.name.slice(0, 14))}`;
     img.src = fallbackUrl;
     skeleton.style.display = "none";
@@ -378,6 +337,7 @@ function setPoster(img, skeleton, g) {
 
   tempImg.src = targetUrl;
 }
+
 const rand = arr => arr[Math.floor(Math.random() * arr.length)];
 function pickNext(prev) {
   let g, tries = 0;
@@ -427,7 +387,6 @@ function guess(wantLonger) {
 
     setTimeout(() => {
       left = right; right = upcoming; upcoming = pickNext(right);
-      resolvePoster(upcoming);
       render();
     }, 1200);
   } else {
@@ -460,11 +419,9 @@ function start() {
   left = rand(pool);
   right = pickNext(left);
   upcoming = pickNext(right);
-  resolvePoster(upcoming);
   render();
 }
 
-// Instant initialization when pre-parsed by Python backend
 function initParsedGames(games) {
   if (!games || !games.length) {
     $("statusTitle").textContent = "Dataset Empty";
@@ -495,7 +452,6 @@ function init(text) {
   initParsedGames(ALL);
 }
 
-// Fallback automatic fetch if opened directly in browser without Python backend
 async function fetchDataset(retries = 2, delay = 800) {
   if (ALL && ALL.length) return;
 
