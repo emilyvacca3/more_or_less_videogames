@@ -332,27 +332,35 @@ function resolvePoster(g) {
 }
 
 function setPoster(img, skeleton, g) {
-  img.style.opacity = "0";
+  // Immediately show skeleton and keep image hidden until ready
   skeleton.style.display = "block";
+  img.style.opacity = "0";
   img.dataset.game = g.name;
 
   resolvePoster(g).then(url => {
+    // If user already clicked to the next round while this was loading, abort
     if (img.dataset.game !== g.name) return;
-    if (url) {
-      img.onload = () => {
-        if (img.dataset.game === g.name) {
-          img.style.opacity = "1";
-          skeleton.style.display = "none";
-        }
-      };
-      img.src = url;
-    } else {
-      img.src = `https://placehold.co/300x450/1e293b/94a3b8?text=${encodeURIComponent(g.name.slice(0, 14))}`;
-      img.onload = () => {
+
+    const targetUrl = url || `https://placehold.co/300x450/1e293b/94a3b8?text=${encodeURIComponent(g.name.slice(0, 14))}`;
+
+    // Preload image object to ensure it's fully downloaded before swapping display
+    const tempImg = new Image();
+    tempImg.onload = () => {
+      if (img.dataset.game !== g.name) return;
+      img.src = targetUrl;
+      skeleton.style.display = "none";
+      // Fade in smoothly and lock opacity so it doesn't flash
+      requestAnimationFrame(() => {
         img.style.opacity = "1";
-        skeleton.style.display = "none";
-      };
-    }
+      });
+    };
+    tempImg.onerror = () => {
+      if (img.dataset.game !== g.name) return;
+      img.src = `https://placehold.co/300x450/1e293b/94a3b8?text=${encodeURIComponent(g.name.slice(0, 14))}`;
+      skeleton.style.display = "none";
+      img.style.opacity = "1";
+    };
+    tempImg.src = targetUrl;
   });
 }
 
