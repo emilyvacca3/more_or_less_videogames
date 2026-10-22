@@ -137,11 +137,397 @@
       </div>
       <h2 id="statusTitle" class="text-lg font-bold text-white">Loading Dataset...</h2>
       <p id="statusDesc" class="text-xs text-slate-400 leading-relaxed">
-        Automatically loading <code class="bg-slate-800 text-rose-300 px-1.5 py-0.5 rounded border border-white/5">hltb.jsonlines</code> from current server directory.
+        Instantly unpacking pre-processed game data from backend server.
       </p>
 
       <div id="picker" class="hidden w-full mt-2 flex flex-col gap-3">
         <p class="text-xs text-amber-300/90 bg-amber-500/10 p-2.5 rounded-xl border border-amber-500/20 text-left">
-          ⚠️ Could not automatically find <code class="text-amber-200">hltb.jsonlines</code>. Select the file manually below if testing locally:
+          ⚠️ Could not find dataset automatically. Select <code class="text-amber-200">hltb.jsonlines</code> manually below if testing standalone:
         </p>
-        <label for
+        <label for="file" class="w-full py-3.5 px-4 bg-slate-800 hover:bg-slate-700 active:scale-95 transition rounded-2xl font-bold text-xs text-slate-200 border border-white/10 flex items-center justify-center gap-2 cursor-pointer">
+          <span>Choose hltb.jsonlines manually</span>
+        </label>
+        <input type="file" id="file" accept=".jsonlines,.jsonl,.json,.txt" class="hidden">
+      </div>
+    </div>
+  </main>
+
+  <!-- Main Gameplay Screen -->
+  <main id="game" class="hidden flex-1 flex-col items-center justify-between p-3 sm:p-4 max-w-lg mx-auto w-full gap-3">
+
+    <!-- Sub Header Controls (Pool Picker) -->
+    <div class="w-full flex items-center justify-between bg-slate-900/60 border border-white/5 rounded-2xl px-3 py-2 text-xs">
+      <span class="text-slate-400 font-semibold flex items-center gap-1.5">
+        <span>🎮</span> Game Pool
+      </span>
+      <select id="pool" class="bg-slate-800 text-slate-100 border border-white/10 rounded-lg px-2 py-1 font-bold outline-none focus:ring-2 focus:ring-rose-500/50">
+      </select>
+    </div>
+
+    <!-- Cards Layout Area (Larger Posters Design) -->
+    <div class="w-full flex-1 flex flex-col gap-3 justify-center">
+
+      <!-- TOP CARD: BASE REFERENCE GAME -->
+      <div id="left" class="glass-card rounded-3xl p-4 sm:p-5 flex items-center gap-4 relative overflow-hidden transition-all duration-300 shadow-xl">
+        <div class="relative flex-shrink-0">
+          <div id="leftSkeleton" class="w-28 h-38 sm:w-32 sm:h-44 rounded-2xl poster-skeleton"></div>
+          <img id="leftPoster" class="w-28 h-38 sm:w-32 sm:h-44 object-cover rounded-2xl shadow-lg border border-white/15 absolute inset-0 opacity-0 transition-opacity duration-300" alt="">
+        </div>
+        <div class="flex-1 min-w-0 flex flex-col justify-center gap-1.5">
+          <span class="text-[10px] uppercase tracking-wider font-extrabold text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-md px-2 py-0.5 w-max">Reference Game</span>
+          <h3 id="leftTitle" class="font-black text-lg sm:text-xl leading-snug text-white line-clamp-2"></h3>
+          <p id="leftMeta" class="text-xs text-slate-400 font-medium"></p>
+          <div class="mt-1 flex items-baseline gap-1.5">
+            <span id="leftHours" class="text-3xl sm:text-4xl font-black text-white tracking-tight"></span>
+            <span class="text-[11px] font-semibold text-slate-400">main story</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- VS DIVIDER BADGE -->
+      <div class="flex items-center justify-center -my-1.5 z-10">
+        <div class="bg-slate-800 border border-white/20 text-slate-300 text-xs font-black px-3.5 py-1 rounded-full shadow-lg tracking-widest uppercase">
+          VS
+        </div>
+      </div>
+
+      <!-- BOTTOM CARD: TARGET GAME TO GUESS -->
+      <div id="right" class="glass-card rounded-3xl p-4 sm:p-5 flex items-center gap-4 relative overflow-hidden transition-all duration-300 shadow-xl">
+        <div class="relative flex-shrink-0">
+          <div id="rightSkeleton" class="w-28 h-38 sm:w-32 sm:h-44 rounded-2xl poster-skeleton"></div>
+          <img id="rightPoster" class="w-28 h-38 sm:w-32 sm:h-44 object-cover rounded-2xl shadow-lg border border-white/15 absolute inset-0 opacity-0 transition-opacity duration-300" alt="">
+        </div>
+        <div class="flex-1 min-w-0 flex flex-col justify-center gap-1.5">
+          <span class="text-[10px] uppercase tracking-wider font-extrabold text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-md px-2 py-0.5 w-max">Is this game...</span>
+          <h3 id="rightTitle" class="font-black text-lg sm:text-xl leading-snug text-white line-clamp-2"></h3>
+          <p id="rightMeta" class="text-xs text-slate-400 font-medium"></p>
+
+          <div class="mt-1 flex items-baseline gap-1.5">
+            <div id="rightReveal" class="text-3xl sm:text-4xl font-black text-amber-400 tracking-tight">?</div>
+            <span id="rightUnit" class="text-[11px] font-semibold text-slate-400 hidden">main story</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- GAME OVER OVERLAY MODAL -->
+    <div id="over" class="hidden glass-card rounded-3xl p-5 border border-white/20 shadow-2xl w-full text-center my-auto flex flex-col gap-3">
+      <div class="text-3xl">💥</div>
+      <h2 class="text-xl font-extrabold text-white">Game Over</h2>
+      <p id="overMsg" class="text-xs sm:text-sm text-slate-300 leading-relaxed px-2"></p>
+
+      <div class="flex gap-2 mt-2">
+        <button id="again" class="flex-1 py-3.5 bg-rose-500 hover:bg-rose-600 active:scale-95 transition rounded-2xl font-black text-sm text-white shadow-lg shadow-rose-500/20">
+          Play Again 🔄
+        </button>
+        <button id="shareBtn" class="py-3.5 px-4 bg-slate-800 hover:bg-slate-700 active:scale-95 transition rounded-2xl font-bold text-sm text-slate-200 border border-white/10 flex items-center justify-center gap-1.5">
+          <span>Share</span> 📤
+        </button>
+      </div>
+    </div>
+
+    <!-- SPACE FOR FIXED BOTTOM BUTTONS -->
+    <div class="h-20 w-full shrink-0"></div>
+  </main>
+
+  <!-- FLOATING ONE-HANDED THUMB ACTION DRAWER -->
+  <footer id="actionDrawer" class="hidden fixed bottom-0 left-0 right-0 z-40 glass border-t border-white/10 p-3 sm:p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+    <div class="max-w-lg mx-auto flex gap-3" id="guessBtns">
+      <button id="higher" class="flex-1 py-4 bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700 active:scale-95 transition rounded-2xl font-black text-base sm:text-lg text-white shadow-lg shadow-rose-500/25 flex items-center justify-center gap-2 touch-manipulation">
+        <span>⬆</span> LONGER
+      </button>
+      <button id="lower" class="flex-1 py-4 bg-gradient-to-r from-slate-800 to-slate-900 hover:from-slate-700 hover:to-slate-800 active:scale-95 transition rounded-2xl font-black text-base sm:text-lg text-slate-100 border border-white/15 shadow-lg flex items-center justify-center gap-2 touch-manipulation">
+        <span>⬇</span> SHORTER
+      </button>
+    </div>
+  </footer>
+
+<script>
+const DATA_FILE = "hltb.jsonlines";
+const POOLS = [[500, "Famous"], [100, "Popular"], [25, "Wide"], [1, "Everything"]];
+const DEFAULT_POOL = 100;
+
+const $ = id => document.getElementById(id);
+let ALL = [];
+let pool = [];
+let minPolled = DEFAULT_POOL;
+let score = 0, best = 0, left, right, upcoming, locked = false;
+
+function triggerHaptic(type = "light") {
+  if (!("vibrate" in navigator)) return;
+  try {
+    if (type === "success") navigator.vibrate([30, 50, 30]);
+    else if (type === "error") navigator.vibrate([80, 40, 80]);
+    else navigator.vibrate(20);
+  } catch (e) {}
+}
+
+function parseMins(s) {
+  if (!s) return null;
+  const h = /(\d+)\s*h/.exec(s), m = /(\d+)\s*m/.exec(s);
+  if (!h && !m) return null;
+  return (h ? +h[1] : 0) * 60 + (m ? +m[1] : 0);
+}
+
+function parsePolled(s) {
+  if (!s) return 0;
+  s = String(s).trim().toUpperCase().replace(/,/g, "");
+  const n = s.endsWith("K") ? parseFloat(s) * 1000 : parseFloat(s);
+  return isFinite(n) ? Math.round(n) : 0;
+}
+
+function loadText(text) {
+  const games = [];
+  for (const line of text.split("\n")) {
+    if (!line.trim()) continue;
+    let d; try { d = JSON.parse(line); } catch (e) { continue; }
+    const main = d.Stats && d.Stats["Single-Player"] && d.Stats["Single-Player"]["Main Story"];
+    if (!main) continue;
+    const mins = parseMins(main.Average);
+    if (!mins) continue;
+    games.push({
+      name: d.Name, mins, polled: parsePolled(main.Polled),
+      steam: d.steam_app_id || null, year: (d.Release_date || "").slice(0, 4)
+    });
+  }
+  return games;
+}
+
+function fmt(m) {
+  const h = Math.floor(m / 60), r = m % 60;
+  return h ? (r ? `${h}h ${r}m` : `${h}h`) : `${r}m`;
+}
+const metaLine = g => [g.year, g.polled.toLocaleString() + " votes"].filter(Boolean).join(" · ");
+
+const posterCache = new Map();
+function tryImage(url) {
+  return new Promise(res => { const i = new Image(); i.onload = () => res(url); i.onerror = () => res(null); i.src = url; });
+}
+
+async function wikiThumb(name) {
+  try {
+    const r = await fetch("https://en.wikipedia.org/api/rest_v1/page/summary/" + encodeURIComponent(name.replace(/ /g, "_")));
+    if (!r.ok) return null;
+    const d = await r.json();
+    return (d.thumbnail && d.thumbnail.source) || null;
+  } catch (e) { return null; }
+}
+
+function resolvePoster(g) {
+  if (!g) return Promise.resolve(null);
+  if (!posterCache.has(g.name)) {
+    posterCache.set(g.name, (async () => {
+      if (g.steam) {
+        const base = `https://cdn.cloudflare.steamstatic.com/steam/apps/${g.steam}/`;
+        for (const f of ["library_600x900.jpg", "header.jpg"]) {
+          const ok = await tryImage(base + f);
+          if (ok) return ok;
+        }
+      }
+      return await wikiThumb(g.name);
+    })());
+  }
+  return posterCache.get(g.name);
+}
+
+function setPoster(img, skeleton, g) {
+  img.style.opacity = "0";
+  skeleton.style.display = "block";
+  img.dataset.game = g.name;
+
+  resolvePoster(g).then(url => {
+    if (img.dataset.game !== g.name) return;
+    if (url) {
+      img.onload = () => {
+        if (img.dataset.game === g.name) {
+          img.style.opacity = "1";
+          skeleton.style.display = "none";
+        }
+      };
+      img.src = url;
+    } else {
+      img.src = `https://placehold.co/300x450/1e293b/94a3b8?text=${encodeURIComponent(g.name.slice(0, 14))}`;
+      img.onload = () => {
+        img.style.opacity = "1";
+        skeleton.style.display = "none";
+      };
+    }
+  });
+}
+
+const rand = arr => arr[Math.floor(Math.random() * arr.length)];
+function pickNext(prev) {
+  let g, tries = 0;
+  do { g = rand(pool); tries++; } while ((g === prev || g.mins === prev.mins) && tries < 200);
+  return g;
+}
+
+function render() {
+  setPoster($("leftPoster"), $("leftSkeleton"), left);
+  setPoster($("rightPoster"), $("rightSkeleton"), right);
+
+  $("leftTitle").textContent = left.name;
+  $("leftMeta").textContent = metaLine(left);
+  $("leftHours").textContent = fmt(left.mins);
+
+  $("rightTitle").textContent = right.name;
+  $("rightMeta").textContent = metaLine(right);
+
+  $("rightReveal").textContent = "?";
+  $("rightReveal").className = "text-3xl sm:text-4xl font-black text-amber-400 tracking-tight";
+  $("rightUnit").classList.add("hidden");
+
+  $("right").className = "glass-card rounded-3xl p-4 sm:p-5 flex items-center gap-4 relative overflow-hidden transition-all duration-300 shadow-xl card-slide-in";
+  $("left").className = "glass-card rounded-3xl p-4 sm:p-5 flex items-center gap-4 relative overflow-hidden transition-all duration-300 shadow-xl";
+
+  $("actionDrawer").classList.remove("hidden");
+  $("score").textContent = score;
+  locked = false;
+}
+
+function guess(wantLonger) {
+  if (locked) return;
+  locked = true;
+  triggerHaptic("light");
+
+  $("rightReveal").textContent = fmt(right.mins);
+  $("rightUnit").classList.remove("hidden");
+
+  const correct = wantLonger ? right.mins >= left.mins : right.mins <= left.mins;
+
+  if (correct) {
+    triggerHaptic("success");
+    score++;
+    $("score").textContent = score;
+    $("right").classList.add("correct-pulse");
+    $("rightReveal").className = "text-3xl sm:text-4xl font-black text-emerald-400 tracking-tight";
+
+    setTimeout(() => {
+      left = right; right = upcoming; upcoming = pickNext(right);
+      resolvePoster(upcoming);
+      render();
+    }, 1200);
+  } else {
+    triggerHaptic("error");
+    $("right").classList.add("wrong-shake");
+    $("rightReveal").className = "text-3xl sm:text-4xl font-black text-rose-500 tracking-tight";
+
+    if (score > best) {
+      best = score; $("best").textContent = best;
+      try { localStorage.setItem("hltb-best-" + minPolled, best); } catch (e) {}
+    }
+
+    setTimeout(() => {
+      $("actionDrawer").classList.add("hidden");
+      $("overMsg").innerHTML = `<b>${right.name}</b> takes <b>${fmt(right.mins)}</b> to beat vs <b>${fmt(left.mins)}</b> for <b>${left.name}</b>.`;
+      $("over").classList.remove("hidden");
+      $("over").classList.add("card-slide-in");
+    }, 1000);
+  }
+}
+
+function start() {
+  score = 0;
+  $("over").classList.add("hidden");
+  pool = ALL.filter(g => g.polled >= minPolled);
+  best = 0;
+  try { best = Number(localStorage.getItem("hltb-best-" + minPolled)) || 0; } catch (e) {}
+  $("best").textContent = best;
+
+  left = rand(pool);
+  right = pickNext(left);
+  upcoming = pickNext(right);
+  resolvePoster(upcoming);
+  render();
+}
+
+// Instant initialization when pre-parsed by Python backend
+function initParsedGames(games) {
+  if (!games || !games.length) {
+    $("statusTitle").textContent = "Dataset Empty";
+    $("statusDesc").textContent = "Loaded dataset file, but found no usable game entries.";
+    $("picker").classList.remove("hidden");
+    return;
+  }
+  
+  ALL = games;
+  
+  $("pool").innerHTML = POOLS.map(([n, label]) => {
+    const count = ALL.filter(g => g.polled >= n).length;
+    return `<option value="${n}" ${n === DEFAULT_POOL ? "selected" : ""}>${label} (${count.toLocaleString()})</option>`;
+  }).join("");
+
+  $("statusContainer").classList.add("hidden");
+  $("game").classList.remove("hidden");
+  $("game").classList.add("flex");
+  start();
+}
+
+function init(text) {
+  if (typeof text === 'object') {
+    initParsedGames(text);
+    return;
+  }
+  ALL = loadText(text);
+  initParsedGames(ALL);
+}
+
+// Fallback automatic fetch if opened directly in browser without Python backend
+async function fetchDataset(retries = 2, delay = 800) {
+  if (ALL && ALL.length) return;
+
+  for (let i = 0; i < retries; i++) {
+    try {
+      const res = await fetch(DATA_FILE, { cache: "no-cache" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const text = await res.text();
+      init(text);
+      return;
+    } catch (err) {
+      if (i < retries - 1) await new Promise(r => setTimeout(r, delay));
+    }
+  }
+
+  if (ALL && ALL.length) return;
+
+  $("loadingIcon").innerHTML = "⚠️";
+  $("statusTitle").textContent = "Automatic Fetch Failed";
+  $("statusDesc").textContent = `Unable to fetch '${DATA_FILE}' automatically from current server host.`;
+  $("picker").classList.remove("hidden");
+}
+
+$("pool").onchange = e => { minPolled = +e.target.value; start(); };
+$("higher").onclick = () => guess(true);
+$("lower").onclick = () => guess(false);
+$("again").onclick = () => { triggerHaptic("light"); start(); };
+
+$("shareBtn").onclick = async () => {
+  triggerHaptic("light");
+  const shareData = {
+    title: 'Longer or Shorter? Game',
+    text: `🎮 I scored ${score} in Longer or Shorter (HLTB Edition)! Can you beat my score?`,
+    url: window.location.href,
+  };
+  if (navigator.share) {
+    try { await navigator.share(shareData); } catch (e) {}
+  } else {
+    navigator.clipboard.writeText(shareData.text);
+    alert("Score copied to clipboard!");
+  }
+};
+
+$("file").onchange = e => {
+  const f = e.target.files[0];
+  if (f) {
+    $("statusTitle").textContent = "Parsing File...";
+    f.text().then(init);
+  }
+};
+
+window.addEventListener("DOMContentLoaded", () => {
+  setTimeout(fetchDataset, 500);
+});
+</script>
+</body>
+</html>
